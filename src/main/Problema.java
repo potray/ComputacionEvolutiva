@@ -3,16 +3,22 @@ package main;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 
 public class Problema {
+	public static final int ESTANDAR = 0;
+	public static final int BALDWINIANA = 1;
+	public static final int LAMARCKIANA = 2;	
+	
 	private String path;
 	private Scanner s;	
 	
 	private Random generadorRandom;
+	private long semilla;
 	
 	private int tamProblema;
 	private int tamPoblacion;
@@ -21,25 +27,29 @@ public class Problema {
 	private int [][] distancias;
 	
 	private ArrayList <Individuo> poblacion;
-	private ArrayList <Individuo> nuevaGeneracion;
 	
 	private int iteraciones;
 	private int maxIteraciones;	
+	private int maxIteracionesSinMejora;
+	private int iteracionesSinMejorar;
 	private double probabilidadCruce;
+	private double probabilidadMutacion;
+	private int elitismo;
 	
-	private int totalCoste;
+	private long totalCoste;
 	private int minCoste;
 	private int maxCoste;
+	private int costeAnterior;
 	
-	public Problema (String path, int tamPoblacion, long semilla, int maxIteraciones, double probabilidadCruce){
+	public Problema (String path, int tamPoblacion, long semilla, int maxIteraciones, int maxIteracionesSinMejora, double probabilidadCruce, double probabilidadMutacion, int elitismo){
 		this.path = path;
 		this.tamPoblacion = tamPoblacion;
-		poblacion = new ArrayList <Individuo> (tamPoblacion);
-		nuevaGeneracion = new ArrayList <Individuo> (tamPoblacion);
-		generadorRandom = new Random(semilla);
+		this.semilla = semilla;
 		this.maxIteraciones = maxIteraciones;
-		iteraciones = 0;
+		this.maxIteracionesSinMejora = maxIteracionesSinMejora;
 		this.probabilidadCruce = probabilidadCruce;
+		this.probabilidadMutacion = probabilidadMutacion;
+		this.elitismo = elitismo;
 	}
 	
 	/**
@@ -80,44 +90,64 @@ public class Problema {
 	 * Inicializa la población utilizando el generador de números aleatorios
 	 */
 	private void init (){
+		iteraciones = 0;
+		iteracionesSinMejorar = 0;
+		costeAnterior = 0;
+		poblacion = new ArrayList <Individuo> (tamPoblacion);
+		generadorRandom = new Random (semilla);
 		System.out.println("Generando población");
 		
 		for (int i = 0; i < tamPoblacion; i++){
 			Solucion s = new Solucion (tamProblema);
 			s.randomizar(generadorRandom);
 			//System.out.println(s.toString());
-			poblacion.add(new Individuo (s, 0));
+			poblacion.add(new Individuo (s, 0, this));
 		}
 		
 		System.out.println("Poblacion generada");
 	}
 	
 	/**
-	 * Le asigna a cada individuo de la población una probabilidad de que sea seleccionado para ser cruzado mediante el método de la selección proporcional.
-	 */
-	
-	/**
 	 * Se calculan máximo, mínimo y total de los costes para utilizarlos. También se le asigna a cada individuo la probabilidad de ser seleccionado para reproducirse.
 	 */
-	private void evaluar(){
+	private void evaluar(int modo){
 		totalCoste = 0;
 		maxCoste = 0;
 		minCoste = (int) Double.POSITIVE_INFINITY;
+		Individuo mejor = new Individuo (new Solucion(tamProblema), 0, this);
 		
 		for (Individuo i : poblacion){
-			int c = coste(i.getSolucion());
-			totalCoste += c;
+			int c;
+			if (modo == ESTANDAR)
+				c = coste(i.getSolucion());
+			else
+				c = coste(i.getSolucionOptimizada());
 			if (c > maxCoste)
 				maxCoste = c;
-			if (c < minCoste)
+			if (c < minCoste){
+				mejor = i;
 				minCoste = c;
+			}
+			totalCoste += c;
 		}
 		
-		//Se le asigna a cada individuo la probabilidad de reproducirse, utilizando el máximo y el mínimo para invertir la probabilidad.
+		if (minCoste == costeAnterior)
+			iteracionesSinMejorar ++;
+		else
+			iteracionesSinMejorar = 0;
+		costeAnterior = minCoste;
+		
+		System.out.println("En la iteración " + iteraciones + " el mejor individuo es " + mejor.toString());
+				
+		//Se le asigna a cada individuo la probabilidad de ser seleccionado, utilizando el máximo y el mínimo para invertir la probabilidad.
 		//Nota: las probabilidades nunca suman 1, pero siempre suman entre 0.99 y 1.01
 		for (Individuo i : poblacion){
-			double prob = (double)((maxCoste + minCoste) - coste(i.getSolucion())) / totalCoste;		
-			i.setProbabilidadSeleccion(prob);
+			double prob;
+			if (modo == ESTANDAR)
+				prob = (double)((maxCoste + minCoste) - coste(i.getSolucion())) / totalCoste;	
+			else
+				prob = (double)((maxCoste + minCoste) - coste(i.getSolucionOptimizada())) / totalCoste;		
+			i.setProbabilidadSeleccion(prob);	
 		}
 	}
 	
@@ -127,30 +157,26 @@ public class Problema {
 	 */
 	private int seleccionar(){		
 		double random = generadorRandom.nextDouble();		
-		int indicePadre;
+		int indiceSeleccionado;
 		
-		for (indicePadre = 0; indicePadre < tamPoblacion && random > 0; indicePadre++)
-			random -= poblacion.get(indicePadre).getProbabilidadReproducirse();
+		for (indiceSeleccionado = 0; indiceSeleccionado < tamPoblacion && random > 0; indiceSeleccionado++)
+			random -= poblacion.get(indiceSeleccionado).getProbabilidadReproducirse();
 		
-		return indicePadre - 1;
+		return indiceSeleccionado - 1;
 	}
 	
 	/**
 	 * Cruza dos individuos utilizando el método PMX
-	 * @param p1
-	 * @param p2
-	 * @return
+	 * @param p1 primer individuo
+	 * @param p2 segundo individuo
+	 * @return los dos hijos resultantes de cruzar los padres
 	 */
-	private Individuo[] cruzar (Individuo p1, Individuo p2){
-		System.out.println("Cruzando los padres: ");
-		System.out.println(p1.toString());
-		System.out.println(p2.toString());
-		System.out.println("");
+	private Individuo[] cruzar (Individuo p1, Individuo p2, int modo){
 		
 		Individuo [] hijos = new Individuo [2];
 		//Mapeos de posiciones
-		Map <Integer, Integer> map1 = new HashMap <Integer, Integer> (tamProblema);
-		Map <Integer, Integer> map2 = new HashMap <Integer, Integer> (tamProblema);
+		Map <Integer, Integer> map1 = new HashMap <Integer, Integer> (tamProblema * 2);
+		Map <Integer, Integer> map2 = new HashMap <Integer, Integer> (tamProblema * 2);
 		
 		//Copio la solución de un padre en el hijo "opuesto"
 		Solucion s1 = new Solucion(p1.getSolucion());
@@ -162,22 +188,80 @@ public class Problema {
 		int finSegmentoAleatorio = inicioSegmentoAleatorio + tamSegmentoAleatorio;
 		
 		if (finSegmentoAleatorio > tamProblema)
-			finSegmentoAleatorio = tamProblema;
+			finSegmentoAleatorio = tamProblema ;
 		
-		for (int i = inicioSegmentoAleatorio; i < finSegmentoAleatorio; i++){
-			s1.set(i, p2.getSolucion().get(i));			
-			s2.set(i, p1.getSolucion().get(i));		
-			map1.put(s1.get(i), s2.get(i));
-		}
+		//Dependiendo de si es lamarckiana o no cojo los de la solución optimizada o no
 		
-		System.out.println(map1.toString());
+		if (modo == LAMARCKIANA)
+			for (int i = inicioSegmentoAleatorio; i < finSegmentoAleatorio; i++){
+				s1.set(i, p2.getSolucionOptimizada().get(i));			
+				s2.set(i, p1.getSolucionOptimizada().get(i));		
+				map1.put(s1.get(i), s2.get(i));
+				map2.put(s2.get(i), s1.get(i));
+			}
+		else
+			for (int i = inicioSegmentoAleatorio; i < finSegmentoAleatorio; i++){
+				s1.set(i, p2.getSolucion().get(i));			
+				s2.set(i, p1.getSolucion().get(i));		
+				map1.put(s1.get(i), s2.get(i));
+				map2.put(s2.get(i), s1.get(i));
+			}
 		
 		
-		System.out.println("Hijos:");
-		System.out.println(s1.toString());
-		System.out.println(s2.toString());
+		//Se convierte cada hijo en una permutación válida sin elementos repetidos
+		checkUnmappedElements(s1, map1, inicioSegmentoAleatorio, finSegmentoAleatorio);
+		checkUnmappedElements(s2, map2, inicioSegmentoAleatorio, finSegmentoAleatorio);
+				
+		hijos[0] = new Individuo(s1, 0, this);
+		hijos[1] = new Individuo(s2, 0, this);
 		
 		return hijos;
+	}
+	
+	/**
+	 * Muta un individuo mediante el operador de Revuelto [scramble]
+	 * @param i el individuo a mutar
+	 */
+	private void mutar (Individuo i){
+		//Elegir un segmento para mutarlo
+		int inicioSegmentoAleatorio = generadorRandom.nextInt(tamProblema);
+		int tamSegmentoAleatorio = generadorRandom.nextInt(tamProblema - 2) + 2;
+		int finSegmentoAleatorio = inicioSegmentoAleatorio + tamSegmentoAleatorio;
+		
+		if (finSegmentoAleatorio >= tamProblema)
+			finSegmentoAleatorio = tamProblema - 1;
+		
+		//Sacar el segmento y mezclarlo
+		ArrayList <Integer> segmento = i.getSolucion().subSeccion(inicioSegmentoAleatorio, finSegmentoAleatorio);			
+
+		Collections.shuffle(segmento);		
+		
+		//Volver a introducir el segmetno
+		i.getSolucion().introducirSubSeccion(inicioSegmentoAleatorio, segmento);
+	}
+	
+	/**
+	 * Mata individuos basándose en la selección basada en el ranking, de forma que nunca se elimina el primero.
+	 */
+	private void matar (){
+		//Primero se ordenan
+		Collections.sort(poblacion);		
+				
+		double random;
+		int indiceSeleccionado;	
+		
+		while (poblacion.size() > tamPoblacion){
+			random = generadorRandom.nextDouble();
+			for (indiceSeleccionado = elitismo; indiceSeleccionado < poblacion.size() && random > 0; indiceSeleccionado++)
+				random -= (double)coste(poblacion.get(0).getSolucion()) / totalCoste;
+		
+			//Control por si las moscas
+			if (indiceSeleccionado - elitismo == 0)
+				indiceSeleccionado = elitismo + 1;
+
+			poblacion.remove(indiceSeleccionado - 1);
+		}
+		
 	}
 	
 	/**
@@ -197,26 +281,79 @@ public class Problema {
 		return coste * 2;
 	}
 	
-	public void resolver (){
+    /**
+     * Sacado de https://github.com/dwdyer/watchmaker/blob/master/framework/src/java/main/org/uncommons/watchmaker/framework/operators/ListOrderCrossover.java
+     * 
+     * Checks elements that are outside of the partially mapped section to
+     * see if there are any duplicate items in the list.  If there are, they
+     * are mapped appropriately.
+     */
+    private void checkUnmappedElements(Solucion s, Map<Integer, Integer> mapping, int mappingStart, int mappingEnd){
+        for (int i = 0; i < tamProblema; i++)
+        {
+            if (!isInsideMappedRegion(i, mappingStart, mappingEnd))
+            {
+                int mapped = s.get(i);
+                while (mapping.containsKey(mapped))
+                {
+                    mapped = mapping.get(mapped);
+                }
+                s.set(i, mapped);
+            }
+        }
+    }
+    
+    /**
+     * Sacado de https://github.com/dwdyer/watchmaker/blob/master/framework/src/java/main/org/uncommons/watchmaker/framework/operators/ListOrderCrossover.java
+     * 
+     * Checks whether a given list position is within the partially mapped
+     * region used for cross-over.
+     * @param position The list position to check.
+     * @param startPoint The starting index (inclusive) of the mapped region.
+     * @param endPoint The end index (exclusive) of the mapped region.
+     * @return True if the specified position is in the mapped region, false
+     * otherwise.
+     */
+    private boolean isInsideMappedRegion(int position, int startPoint, int endPoint){
+        boolean enclosed = (position < endPoint && position >= startPoint);
+        boolean wrapAround = (startPoint > endPoint && (position >= startPoint || position < endPoint)); 
+        return enclosed || wrapAround;
+    }
+	
+	public void resolver (int modo){
 		parse();
 		init ();		
-		evaluar();
+		evaluar(modo);
 		
-		//TODO cambiar a while not (condicion de terminacion)
-		while (iteraciones < maxIteraciones){
+		while (iteraciones < maxIteraciones && iteracionesSinMejorar < maxIteracionesSinMejora){
 			iteraciones ++;
+			
 			//Se realizan tamPoblacion cruces
 			for (int i = 0; i < tamPoblacion; i++){
 				//Se seleccionan 2 individuos
 				int p1 = seleccionar();
 				int p2 = seleccionar();
-
 				
 				//Si son distintos y salta la probabilidad se cruzan
 				if (generadorRandom.nextDouble() < probabilidadCruce && p1 != p2){
-					cruzar(poblacion.get(p1), poblacion.get(p2));
+					Individuo [] hijos = cruzar(poblacion.get(p1), poblacion.get(p2), modo);
+					//Cada hijo se muta con probabilidad p
+					if (generadorRandom.nextDouble() < probabilidadMutacion){
+						mutar(hijos[0]);
+					}					
+					if (generadorRandom.nextDouble() < probabilidadMutacion){
+						mutar(hijos[1]);
+					}
+					poblacion.add(hijos[0]);
+					poblacion.add(hijos[1]);					
 				}
 			}
+			
+			//A continuación se eliminan individuos hasta que el quedan tamPoblacion individuos
+			matar();	
+			
+			//Por último se evalúa
+			evaluar(modo);
 		}
 	}
 	
@@ -280,5 +417,33 @@ public class Problema {
 	 */
 	public void setDistancias(int[][] distancias) {
 		this.distancias = distancias;
+	}
+
+	/**
+	 * @return the minCoste
+	 */
+	public int getMinCoste() {
+		return minCoste;
+	}
+
+	/**
+	 * @param minCoste the minCoste to set
+	 */
+	public void setMinCoste(int minCoste) {
+		this.minCoste = minCoste;
+	}
+
+	/**
+	 * @return the iteraciones
+	 */
+	public int getIteraciones() {
+		return iteraciones;
+	}
+
+	/**
+	 * @param iteraciones the iteraciones to set
+	 */
+	public void setIteraciones(int iteraciones) {
+		this.iteraciones = iteraciones;
 	}
 }

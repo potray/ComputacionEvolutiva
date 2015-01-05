@@ -57,7 +57,40 @@ public class Solucion {
 		}
 	}
 	
+	/**
+	 * Devuelve una subsección de la solución
+	 * @param inicio inicio de la subsección
+	 * @param fin fin de la subsección
+	 * @return la subsección desde inicio hasta fin
+	 * @throws IndexOutOfBoundsException
+	 */
+	public ArrayList <Integer> subSeccion (int inicio, int fin) throws IndexOutOfBoundsException{
+		if (inicio > fin || inicio < 0 || fin >= tam)
+			throw new IndexOutOfBoundsException("Error: subsección no válida. Inicio = " + inicio + ", fin = " + fin);
+		else
+			return new ArrayList <Integer> (permutacion.subList(inicio, fin));
+	}	
 	
+	/**
+	 * Introduce una subsección dentro de la solución
+	 * @param inicio posición inicial donde se va a introducir la subsección
+	 * @param subseccion subsección a insertar
+	 * @throws IndexOutOfBoundsException
+	 */
+	public void introducirSubSeccion (int inicio, ArrayList <Integer> subseccion) throws IndexOutOfBoundsException{
+		if (inicio + subseccion.size() > tam || inicio < 0)
+			throw new IndexOutOfBoundsException("Error: subsección no válida. Inicio = " + inicio + ", tamaño subsección = " + subseccion.size());
+		else{
+			for (int i = inicio; i < inicio + subseccion.size(); i++){
+				set(i, subseccion.get(i - inicio));
+			}
+		}
+	}	
+	
+	
+	/**
+	 * Para una solución a una cadena de caracteres
+	 */
 	public String toString (){
 		String s = "{";
 		
