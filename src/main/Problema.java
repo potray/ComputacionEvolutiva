@@ -259,7 +259,7 @@ public class Problema {
 	/**
 	 * Mata individuos basándose en la selección basada en el ranking, de forma que nunca se elimina el primero.
 	 */
-	private void matar (){
+	private void matar (int modo){
 		//Primero se ordenan
 		Collections.sort(poblacion);		
 				
@@ -268,12 +268,17 @@ public class Problema {
 		
 		while (poblacion.size() > tamPoblacion){
 			random = generadorRandom.nextDouble();
-			for (indiceSeleccionado = elitismo; indiceSeleccionado < poblacion.size() && random > 0; indiceSeleccionado++)
-				random -= (double)coste(poblacion.get(indiceSeleccionado).getSolucion()) / totalCoste;
+			for (indiceSeleccionado = elitismo; indiceSeleccionado < poblacion.size() && random > 0; indiceSeleccionado++){
+				if (modo == ESTANDAR)
+					random -= (double)coste(poblacion.get(indiceSeleccionado).getSolucion()) / totalCoste;
+				else
+					random -= (double)coste(poblacion.get(indiceSeleccionado).getSolucionOptimizada()) / totalCoste;					
+			}
 		
 			//Control por si las moscas
 			if (indiceSeleccionado - elitismo == 0)
 				indiceSeleccionado = elitismo + 1;
+			
 			
 			Debug.p("Matando al individuo número " + indiceSeleccionado + " = " + poblacion.get(indiceSeleccionado - 1).toStringPeque());
 
@@ -373,7 +378,7 @@ public class Problema {
 			
 			//A continuación se eliminan individuos hasta que el quedan tamPoblacion individuos
 			Debug.p("Matando");
-			matar();	
+			matar(modo);	
 			
 			
 			//Por último se evalúa
