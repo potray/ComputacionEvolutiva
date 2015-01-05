@@ -1,5 +1,7 @@
 package main;
 
+import util.Debug;
+
 public class Individuo implements Comparable<Individuo>{
 	private Solucion solucion;
 	private Solucion solucionOptimizada;
@@ -33,27 +35,39 @@ public class Individuo implements Comparable<Individuo>{
 	 */
 	public Solucion getSolucionOptimizada() {
 		if (!optimizada){
-			//Se utiliza el algoritmo greedy basado en 2-opt
+			//Se utiliza el algoritmo greedy basado en 2-opt, pero en cuanto encuentra algo mejor o se ha intentado mejorar 10 veces se sale ya que para n=256 tarda demasiado
 			solucionOptimizada = solucion;
-			Solucion mejor;
 			Solucion permutada;
+			int iteraciones = 0;
+			
+			boolean mejorada = false;
+			int costeSolucionOptimizada = problema.coste(solucionOptimizada);
 			
 			int tamProblema = problema.getTamProblema();
 			do{
-				mejor = solucionOptimizada;
-				
+				Debug.p("Intentando optimizar a " + toStringPeque() + " por " + iteraciones + " vez");
+				iteraciones ++;
 				for (int i = 0; i < tamProblema; i++){
 					for (int j = i + 1; j < tamProblema; j++){
-						permutada = new Solucion (mejor);
+						
+						permutada = new Solucion (solucionOptimizada);
 						int aux = permutada.get(j);
 						permutada.set(j, permutada.get(i));
 						permutada.set(i, aux);
+						
+						if (problema.coste(permutada) < costeSolucionOptimizada){
+							solucionOptimizada = permutada;
+							costeSolucionOptimizada = problema.coste(solucionOptimizada);
+							mejorada = true;							
+						}
 					}
-				}
-			} while (solucionOptimizada != mejor);		
+				}	
+			} while (!mejorada && iteraciones < 10);		
 			
 			optimizada = true;
 		}
+		else
+			Debug.p("Como estaba optimizada no he tenido que volver a optimizar");
 		
 		return solucionOptimizada;
 	}
@@ -86,6 +100,10 @@ public class Individuo implements Comparable<Individuo>{
 		s += ", Coste = " + problema.coste(solucion);
 		
 		return s;
+	}
+	
+	public String toStringPeque(){
+		return ("Coste = " + problema.coste(solucion));
 	}
 
 	@Override

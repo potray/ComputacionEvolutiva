@@ -9,6 +9,8 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 
+import util.Debug;
+
 public class Problema {
 	public static final int ESTANDAR = 0;
 	public static final int BALDWINIANA = 1;
@@ -116,12 +118,15 @@ public class Problema {
 		minCoste = (int) Double.POSITIVE_INFINITY;
 		Individuo mejor = new Individuo (new Solucion(tamProblema), 0, this);
 		
+		Debug.p("Mirando mejor y peor coste");
 		for (Individuo i : poblacion){
 			int c;
 			if (modo == ESTANDAR)
 				c = coste(i.getSolucion());
-			else
-				c = coste(i.getSolucionOptimizada());
+			else{
+				Debug.p("Usando como coste la solución optimizada");
+				c = coste(i.getSolucionOptimizada());				
+			}
 			if (c > maxCoste)
 				maxCoste = c;
 			if (c < minCoste){
@@ -174,13 +179,19 @@ public class Problema {
 	private Individuo[] cruzar (Individuo p1, Individuo p2, int modo){
 		
 		Individuo [] hijos = new Individuo [2];
+		Solucion s1, s2;
 		//Mapeos de posiciones
 		Map <Integer, Integer> map1 = new HashMap <Integer, Integer> (tamProblema * 2);
 		Map <Integer, Integer> map2 = new HashMap <Integer, Integer> (tamProblema * 2);
 		
 		//Copio la solución de un padre en el hijo "opuesto"
-		Solucion s1 = new Solucion(p1.getSolucion());
-		Solucion s2 = new Solucion(p2.getSolucion());
+		if (modo == LAMARCKIANA){
+			s1 = new Solucion(p1.getSolucionOptimizada());
+			s2 = new Solucion(p2.getSolucionOptimizada());				
+		}else{
+			s1 = new Solucion(p1.getSolucion());
+			s2 = new Solucion(p2.getSolucion());			
+		}
 		
 		//Elegir un segmento aleatorio de un padre y copiarlo en el hijo, registrando el mapeo
 		int inicioSegmentoAleatorio = generadorRandom.nextInt(tamProblema);
@@ -192,13 +203,15 @@ public class Problema {
 		
 		//Dependiendo de si es lamarckiana o no cojo los de la solución optimizada o no
 		
-		if (modo == LAMARCKIANA)
+		if (modo == LAMARCKIANA){
+			Debug.p("Cruzando de la forma lamarckiana");
 			for (int i = inicioSegmentoAleatorio; i < finSegmentoAleatorio; i++){
 				s1.set(i, p2.getSolucionOptimizada().get(i));			
 				s2.set(i, p1.getSolucionOptimizada().get(i));		
 				map1.put(s1.get(i), s2.get(i));
 				map2.put(s2.get(i), s1.get(i));
 			}
+		}
 		else
 			for (int i = inicioSegmentoAleatorio; i < finSegmentoAleatorio; i++){
 				s1.set(i, p2.getSolucion().get(i));			
@@ -223,6 +236,7 @@ public class Problema {
 	 * @param i el individuo a mutar
 	 */
 	private void mutar (Individuo i){
+		Debug.p("Mutando a " + i.toString());
 		//Elegir un segmento para mutarlo
 		int inicioSegmentoAleatorio = generadorRandom.nextInt(tamProblema);
 		int tamSegmentoAleatorio = generadorRandom.nextInt(tamProblema - 2) + 2;
@@ -238,6 +252,8 @@ public class Problema {
 		
 		//Volver a introducir el segmetno
 		i.getSolucion().introducirSubSeccion(inicioSegmentoAleatorio, segmento);
+		
+		Debug.p("Mutado");
 	}
 	
 	/**
@@ -253,11 +269,13 @@ public class Problema {
 		while (poblacion.size() > tamPoblacion){
 			random = generadorRandom.nextDouble();
 			for (indiceSeleccionado = elitismo; indiceSeleccionado < poblacion.size() && random > 0; indiceSeleccionado++)
-				random -= (double)coste(poblacion.get(0).getSolucion()) / totalCoste;
+				random -= (double)coste(poblacion.get(indiceSeleccionado).getSolucion()) / totalCoste;
 		
 			//Control por si las moscas
 			if (indiceSeleccionado - elitismo == 0)
 				indiceSeleccionado = elitismo + 1;
+			
+			Debug.p("Matando al individuo número " + indiceSeleccionado + " = " + poblacion.get(indiceSeleccionado - 1).toStringPeque());
 
 			poblacion.remove(indiceSeleccionado - 1);
 		}
@@ -329,10 +347,13 @@ public class Problema {
 			iteraciones ++;
 			
 			//Se realizan tamPoblacion cruces
+			Debug.p("Cruzando");
 			for (int i = 0; i < tamPoblacion; i++){
+				Debug.p("Seleccionando a 2 individuos");
 				//Se seleccionan 2 individuos
 				int p1 = seleccionar();
 				int p2 = seleccionar();
+				Debug.p("Seleccionados");
 				
 				//Si son distintos y salta la probabilidad se cruzan
 				if (generadorRandom.nextDouble() < probabilidadCruce && p1 != p2){
@@ -347,12 +368,16 @@ public class Problema {
 					poblacion.add(hijos[0]);
 					poblacion.add(hijos[1]);					
 				}
+				Debug.p("En el bucle de los cruces i = " + i);
 			}
 			
 			//A continuación se eliminan individuos hasta que el quedan tamPoblacion individuos
+			Debug.p("Matando");
 			matar();	
 			
+			
 			//Por último se evalúa
+			Debug.p("Evaluando");
 			evaluar(modo);
 		}
 	}

@@ -3,8 +3,7 @@ package main;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.PrintWriter;
-import java.sql.Time;
-import java.util.Random;
+import util.Debug;
 
 public class Main {		
 	
@@ -17,43 +16,52 @@ public class Main {
 	private static double probabilidadMutacion = 1.0/tamPoblacion;
 	private static int elitismo = 1;
 
-	public static void main(String[] args) {		
+	public static void main(String[] args) {	
+		
+		Debug.setDebug(false);
+		
+		//realizarExperimentos();
+		//experimentar(tamPoblacion);
+
+	}
+	
+	public static void realizarExperimentos(){
 		PrintWriter pw;
 		try {
-			pw = new PrintWriter(new File("experimentos3.csv"));		
-			pw.println("Experimento\tParmámetro\tMejor individuo\tTiempo\tIteraciones");
+			pw = new PrintWriter(new File("experimentos.csv"));		
+			pw.println("Experimento\tParmámetro\tMejor individuo\tTiempo en milisegundos\tIteraciones");
 			
 			//Probar tamaño de la población
 			pw.println("Experimentando con la población");
-			for (tamPoblacion = 10; tamPoblacion <= 200; tamPoblacion += 10){				
+			for (tamPoblacion = 10; tamPoblacion <= 400; tamPoblacion += 10){				
 				pw.println(experimentar(tamPoblacion));
 			}
 			tamPoblacion = 50;
 			
 			//Probar probabilidad de cruce
 			pw.println("Experimentando con la probabilidad de cruce");
-			for (probabilidadCruce = 0.7; probabilidadCruce <= 0.9; probabilidadCruce +=0.01){		
+			for (probabilidadCruce = 0.7; probabilidadCruce <= 0.9; probabilidadCruce +=0.005){		
 				pw.println(experimentar(probabilidadCruce));				
 			}
 			probabilidadCruce = 0.8;
 			
 			//Probar probabilidad de mutación
 			pw.println("Experimentando con la probabilidad de mutación");
-			for (probabilidadMutacion = 1/tamPoblacion; probabilidadMutacion <= 5.0/tamPoblacion; probabilidadMutacion += 0.25/tamPoblacion){		
+			for (probabilidadMutacion = 1/tamPoblacion; probabilidadMutacion <= 5.0/tamPoblacion; probabilidadMutacion += 0.115/tamPoblacion){		
 				pw.println(experimentar(probabilidadMutacion));				
 			}
 			probabilidadMutacion = 1.0/tamPoblacion;
 			
 			//Probar elitismo
 			pw.println("Experimentando con el elitismo");
-			for (elitismo = 1; elitismo <= 20; elitismo ++){		
+			for (elitismo = 1; elitismo <= 40; elitismo ++){		
 				pw.println(experimentar(elitismo));				
 			}
 			elitismo = 1;
 			
 			//Probar iteraciones sin mejora
 			pw.println("Experimentando con el número de iteraciones sin mejora");
-			for (maxIteracionesSinMejora = 0; maxIteracionesSinMejora <= 60; maxIteracionesSinMejora += 3){		
+			for (maxIteracionesSinMejora = 0; maxIteracionesSinMejora <= 200; maxIteracionesSinMejora += 5){		
 				pw.println(experimentar(maxIteracionesSinMejora));				
 			}
 			maxIteracionesSinMejora = 20;
@@ -80,19 +88,25 @@ public class Main {
 		tiempoAnterior = System.currentTimeMillis();
 		prob.resolver(Problema.ESTANDAR);
 		tiempoActual = System.currentTimeMillis();
-		linea += String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior) / 1000) + "\t";
-
-		tiempoAnterior = System.currentTimeMillis();
-		prob.resolver(Problema.LAMARCKIANA);
-		tiempoActual = System.currentTimeMillis();
-		linea += String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior) / 1000) + "\t";
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
 
 		tiempoAnterior = System.currentTimeMillis();
 		prob.resolver(Problema.BALDWINIANA);
 		tiempoActual = System.currentTimeMillis();
-		linea += String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior) / 1000) + "\t";
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
+
+		tiempoAnterior = System.currentTimeMillis();
+		prob.resolver(Problema.LAMARCKIANA);
+		tiempoActual = System.currentTimeMillis();
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
 		
 		return linea;
 	}
 
+	public static void experimentar(){		
+		Problema prob = new Problema ("src/datos/tai256c.dat", tamPoblacion, semilla2, maxIteraciones, maxIteracionesSinMejora, probabilidadCruce, probabilidadMutacion, elitismo);			
+		prob.resolver(Problema.ESTANDAR);
+		prob.resolver(Problema.BALDWINIANA);
+		prob.resolver(Problema.LAMARCKIANA);}
+	
 }
