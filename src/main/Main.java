@@ -20,9 +20,12 @@ public class Main {
 		
 		Debug.setDebug(false);
 		
+		//Cambiar parámetros según los resultados de los experimentos y ejecutar las 3 variantes
+		tamPoblacion = 20;
+		maxIteracionesSinMejora = 15;
+		elitismo = 2;
 		//realizarExperimentos();
-		//experimentar(tamPoblacion);
-
+		System.out.println(experimentar());
 	}
 	
 	public static void realizarExperimentos(){
@@ -90,7 +93,7 @@ public class Main {
 		tiempoActual = System.currentTimeMillis();
 		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
 
-		tiempoAnterior = System.currentTimeMillis();
+		/*tiempoAnterior = System.currentTimeMillis();
 		prob.resolver(Problema.BALDWINIANA);
 		tiempoActual = System.currentTimeMillis();
 		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
@@ -99,14 +102,21 @@ public class Main {
 		prob.resolver(Problema.LAMARCKIANA);
 		tiempoActual = System.currentTimeMillis();
 		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + ((tiempoActual - tiempoAnterior)) + "\t" + prob.getIteraciones() + "\t";
-		
+		*/
 		return linea;
 	}
 
-	public static void experimentar(){		
+	public static String experimentar(){	
+		String linea = "";	
 		Problema prob = new Problema ("src/datos/tai256c.dat", tamPoblacion, semilla2, maxIteraciones, maxIteracionesSinMejora, probabilidadCruce, probabilidadMutacion, elitismo);			
-		prob.resolver(Problema.ESTANDAR);
-		prob.resolver(Problema.BALDWINIANA);
-		prob.resolver(Problema.LAMARCKIANA);}
 	
+		prob.resolver(Problema.ESTANDAR);
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + prob.getIteraciones() + "\t";
+		prob.resolver(Problema.BALDWINIANA);
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + prob.getIteraciones() + "\t";
+		prob.resolver(Problema.LAMARCKIANA);
+		linea += "\t" + String.valueOf(prob.getMinCoste()) + "\t" + prob.getIteraciones() + "\t";
+		
+		return linea;
+	}
 }

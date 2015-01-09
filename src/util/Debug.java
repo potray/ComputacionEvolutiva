@@ -2,7 +2,7 @@ package util;
 
 public class Debug {
 	
-	private static boolean debug = true;
+	public static boolean debug = true;
 	
 	public static void setDebug (boolean d){
 		debug = d;

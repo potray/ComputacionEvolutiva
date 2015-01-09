@@ -96,8 +96,14 @@ public class Individuo implements Comparable<Individuo>{
 	public String toString (){
 		String s = "";
 		
-		s += solucion.toString();
-		s += ", Coste = " + problema.coste(solucion);
+		if (optimizada){
+			s +=solucionOptimizada.toString();
+			s += ", Coste  (Optimizada) = " + problema.coste(solucionOptimizada);
+		}
+		else{
+			s += solucion.toString();
+			s += ", Coste = " + problema.coste(solucion);			
+		}
 		
 		return s;
 	}

@@ -266,6 +266,11 @@ public class Problema {
 		double random;
 		int indiceSeleccionado;	
 		
+		if (Debug.debug){
+			for (int i = 0; i < poblacion.size(); i++)
+				Debug.p(poblacion.get(i).toString());
+		}
+		
 		while (poblacion.size() > tamPoblacion){
 			random = generadorRandom.nextDouble();
 			for (indiceSeleccionado = elitismo; indiceSeleccionado < poblacion.size() && random > 0; indiceSeleccionado++){
@@ -276,8 +281,10 @@ public class Problema {
 			}
 		
 			//Control por si las moscas
-			if (indiceSeleccionado - elitismo == 0)
+			if (indiceSeleccionado - elitismo <= 0){
 				indiceSeleccionado = elitismo + 1;
+				Debug.p("HEMOS INTENTADO MATAR AL MEJOR!!!");
+			}
 			
 			
 			Debug.p("Matando al individuo número " + indiceSeleccionado + " = " + poblacion.get(indiceSeleccionado - 1).toStringPeque());
